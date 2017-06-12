@@ -5,7 +5,7 @@
 #require "containers.data";;
 #require "sequence";;
 #require "gen";;
-#require "oclock";;
+#require "mtime.clock.os";;
 #directory "_build/src/"
 #directory "_build/src/core";;
 #directory "_build/src/prover";;
