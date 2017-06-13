@@ -298,9 +298,12 @@ let check_fun_fvars =
   let prop t =
     if T.DB.is_closed t then (
       let vars = T.vars t |> T.VarSet.to_list in
-      let t' = T.fun_of_fvars vars t in
-      let t'_app = Lambda.whnf (T.app t' (List.map T.var vars)) in
-      T.equal t t'_app
+      (* check that [(fun x. t[x]) x ==_β t] *)
+      let t' =
+        T.app (T.fun_of_fvars vars t) (List.map T.var vars)
+        |> Lambda.snf
+      in
+      T.equal (Lambda.snf t) t'
     ) else QCheck.assume_fail()
   in
   QCheck.Test.make gen prop
