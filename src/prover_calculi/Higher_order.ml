@@ -716,7 +716,7 @@ module Make(E : Env.S) : S with module Env = E = struct
     let x_diff = Term.app x [Term.app diff [x; y]] in
     let y_diff = Term.app y [Term.app diff [x; y]] in
     let lits = [Literal.mk_eq x y; Literal.mk_neq x_diff y_diff] in
-    Env.C.create ~penalty:5 ~trail:Trail.empty lits Proof.Step.trivial
+    Env.C.create ~penalty:2 ~trail:Trail.empty lits Proof.Step.trivial
 
   let setup () =
     if not (Env.flex_get k_enabled) then (
