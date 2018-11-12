@@ -236,10 +236,20 @@ let test_kbo = "ordering.kbo", `Quick, fun () ->
                    (T.app app [ty1; ty1; T.app app [ty1; ty2; add; x]; T.app app [ty1; ty1; s; y]])
                 ) Comparison.Gt
 
+let test_epo = "ordering.epo", `Quick, fun () ->
+  let ord = O.epo (Precedence.default [a_; b_; c_; f_; g_; h_]) in
+  let compare = O.compare ord in
+
+  (* f x > x *)
+  let f = Term.const ~ty:(Type.arrow [ty; ty] ty) f_ in
+  let b = Term.const ~ty b_ in
+  let x = Term.var (HVar.fresh ~ty ()) in
+  Alcotest.(check comp_test) "f x > x" (compare (Term.app f [x]) x) Comparison.Gt
 
 let suite =
   [ test_rpo6;
-    test_kbo
+    test_kbo;
+    test_epo
   ]
 
 let props =
@@ -254,4 +264,5 @@ let props =
       O.kbo (Precedence.default []);
       O.lfhokbo_arg_coeff (Precedence.default []);
       O.rpo6 (Precedence.default []);
+      O.epo (Precedence.default []);
     ]

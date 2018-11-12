@@ -76,7 +76,7 @@ let can_select_lit ~ord (lits:Lits.t) (i:int) : bool =
         (* We cannot select literals containing a HO variable: *)
         not (
           Lit.fold_terms ~vars:true ~ty_args:false ~which:`All ~subterms:true lits.(i)
-          |> Sequence.exists (fun (t,_) -> T.is_ho_var (fst (T.as_app t)))
+          |> Sequence.exists (fun (t,_) -> T.is_ho_var t)
         )
   )
   else false

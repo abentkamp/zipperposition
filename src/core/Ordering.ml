@@ -12,6 +12,7 @@ open Comparison
 let prof_lfhokbo_arg_coeff = Util.mk_profiler "compare_lfhokbo_arg_coeff"
 let prof_rpo6 = Util.mk_profiler "compare_rpo6"
 let prof_kbo = Util.mk_profiler "compare_kbo"
+let prof_epo = Util.mk_profiler "compare_epo"
 
 module T = Term
 module TC = Term.Classic
@@ -597,7 +598,111 @@ module RPO6 : ORD = struct
     c = Lt && alpha ~prec (Head.term_to_args s) t = Gt
 end
 
+module EPO : ORD = struct
+  let name = "epo"
+(*
+  module FlatTerm = struct
 
+    type entry =
+      { head  : Head.t;
+        depth : int;
+        next  : int;
+      }
+    
+    type t = entry array
+
+    type embterm = { pos: int; depth : int }
+
+    let chop (s:embterm) = {s with pos = s.pos + 1}
+
+    let head (t:t) (s:embterm) = (Array.get t s.pos).head
+
+    let first_arg (t:t) (s:embterm) = 
+      let pos = s.pos + 1 in
+      let entry = Array.get t pos in
+      if entry.depth > s.depth
+      then Some {pos; depth = entry.depth}
+      else None
+
+    let next_arg (t:t) (s:embterm) depth = 
+      let pos = (Array.get t s.pos).next in
+      let entry = Array.get t pos in
+      if entry.depth > depth
+      then Some {pos; depth = entry.depth}
+      else None
+
+(*TODO: cast*)
+    let rec of_term term = match Head.term_to_head term, Head.term_to_args term with
+      | Some head, args -> head :: CCList.flat_map of_term args
+      | _ -> assert false 
+  end
+  *)
+  let rec epo ~prec (s,ss) (t,tt) = 
+    if T.equal s t && CCList.length ss = CCList.length tt && CCList.for_all2 T.equal ss tt then Eq else
+      begin match Head.term_to_head s, Head.term_to_head t with
+        | Some f, Some g ->
+          epo_composite ~prec (s,ss) (t,tt) (f, Head.term_to_args s @ ss)  (g, Head.term_to_args t @ tt)
+        | _ -> Incomparable
+      end
+  and epo_composite ~prec (s,ss) (t,tt) (f,ff) (g,gg) =
+    let chop_test_f = epo_test_chop ~prec (f,ff) (t,tt) in
+    let chop_test_g = epo_test_chop ~prec (g,gg) (s,ss) in
+    if chop_test_f = Some Gt || chop_test_f = Some Eq then Gt
+    else if chop_test_g = Some Gt || chop_test_g = Some Eq then Lt
+    else
+      begin match prec_compare prec f g  with
+        | Eq ->
+          let c = match prec_status prec f with
+            | Prec.Multiset -> assert false
+            | Prec.Lexicographic -> epo_lex ~prec ff gg
+            | Prec.LengthLexicographic ->  epo_llex ~prec ff gg
+          in
+          begin match f with
+            | Head.V _ -> 
+              if c = Gt && epo_test_chop_both ~prec (f,ff) (g,gg) then Gt else
+              if c = Lt && epo_test_chop_both ~prec (g,gg) (f,ff) then Lt else
+              if c = Eq then Eq else Incomparable
+            | _ -> 
+              if c = Gt && chop_test_g = Some Lt || chop_test_g = None then Gt else
+              if c = Lt && chop_test_f = Some Lt || chop_test_f = None then Lt else
+              if c = Eq then Eq else Incomparable
+          end
+        | Gt -> if chop_test_g = Some Lt || chop_test_g = None then Gt else Incomparable
+        | Lt -> if chop_test_f = Some Lt || chop_test_f = None then Lt else Incomparable
+        | Incomparable -> Incomparable
+      end
+  and epo_test_chop ~prec (_,ff) (t,tt) =
+    if List.length ff > 0
+    then Some (epo ~prec (List.hd ff, List.tl ff) (t,tt))
+    else None
+  and epo_test_chop_both ~prec (_,ff) (_,gg) =
+    if List.length ff > 0 && List.length gg > 0
+    then epo ~prec (List.hd ff, List.tl ff) (List.hd gg, List.tl gg) = Gt
+    else true
+  and epo_llex ~prec ff gg =
+    let m, n = (List.length ff), (List.length gg) in
+    if m < n then Lt else
+      if m > n then Gt else
+        epo_lex ~prec ff gg
+  and epo_lex ~prec ff gg =
+    match ff, gg with
+      | [], [] -> Eq
+      | (ff_hd :: ff_tl), (gg_hd :: gg_tl) -> 
+        let c = epo ~prec (ff_hd,[]) (gg_hd,[]) in
+        if c = Eq 
+        then epo_lex ~prec ff_tl gg_tl
+        else c
+      | (_ :: _), [] -> Gt
+      | [], (_ :: _) -> Lt
+
+  let compare_terms ~prec x y = 
+    Util.enter_prof prof_epo;
+    let compare = epo ~prec (x,[]) (y,[]) in
+    Util.exit_prof prof_epo;
+    compare
+
+  let might_flip _ _ _ = false
+end
 
 (** {2 Value interface} *)
 
@@ -626,6 +731,13 @@ let rpo6 prec =
   in
   { cache; compare; name=RPO6.name; prec; might_flip; monotonic=false}
 
+let epo prec =
+  let cache = mk_cache 256 in
+  let compare prec a b = CCCache.with_cache cache
+      (fun (a, b) -> EPO.compare_terms ~prec a b) (a,b)
+  in
+  { cache; compare; name=EPO.name; prec; might_flip=EPO.might_flip; monotonic=true }
+
 let dummy_cache_ = CCCache.dummy
 
 let none =
@@ -648,6 +760,7 @@ let subterm =
 let tbl_ =
   let h = Hashtbl.create 5 in
   Hashtbl.add h "rpo6" rpo6;
+  Hashtbl.add h "epo" epo;
   Hashtbl.add h "lfhokbo_arg_coeff" lfhokbo_arg_coeff;
   Hashtbl.add h "kbo" kbo;
   Hashtbl.add h "none" (fun _ -> none);

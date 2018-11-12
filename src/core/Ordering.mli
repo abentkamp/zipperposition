@@ -64,6 +64,9 @@ val lfhokbo_arg_coeff : Precedence.t -> t
 val rpo6 : Precedence.t -> t
 (** Efficient implementation of RPO (recursive path ordering) (Blanchette's lambda-free higher-order version)  *)
 
+val epo : Precedence.t -> t
+(** Efficient implementation of RPO (recursive path ordering) (Blanchette's lambda-free higher-order version)  *)
+
 val none : t
 (** All terms are incomparable (equality still works).
     Not a simplification ordering. *)
