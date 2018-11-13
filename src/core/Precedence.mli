@@ -7,6 +7,9 @@ type symbol_status =
   | Multiset
   | Lexicographic
   | LengthLexicographic
+  | LengthLexicographicRTL
+
+val default_symbol_status : symbol_status
 
 (** {2 Weight of Symbols} *)
 module Weight : sig
@@ -141,7 +144,7 @@ val set_weight : t -> weight_fun -> unit
 
 (** {2 Creation of a precedence from constraints} *)
 
-val create : ?weight:weight_fun -> ?arg_coeff:arg_coeff_fun -> [`total] Constr.t -> ID.t list -> t
+val create : ?weight:weight_fun -> ?arg_coeff:arg_coeff_fun -> default_symbol_status:symbol_status -> [`total] Constr.t -> ID.t list -> t
 (** make a precedence from the given constraints. Constraints near
     the head of the list are {b more important} than constraints close
     to the tail. Only the very first constraint is assured to be totally

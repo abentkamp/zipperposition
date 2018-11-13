@@ -7,6 +7,7 @@ type symbol_status =
   | Multiset
   | Lexicographic
   | LengthLexicographic
+  | LengthLexicographicRTL (* right to left *)
 
 let section = Util.Section.(make "precedence")
 
@@ -126,6 +127,8 @@ type t = {
   (* symbols by increasing order *)
   mutable tbl: int ID.Tbl.t Lazy.t;
   (* symbol -> index in precedence *)
+  default_symbol_status : symbol_status;
+  (* default status *)
   status: symbol_status ID.Tbl.t;
   (* symbol -> status *)
   mutable weight: ID.t -> Weight.t;
@@ -167,7 +170,9 @@ let mem p s =
   let lazy tbl = p.tbl in
   ID.Tbl.mem tbl s
 
-let status p s = ID.Tbl.get_or ~default:LengthLexicographic p.status s
+let default_symbol_status = LengthLexicographic
+
+let status p s = ID.Tbl.get_or ~default:default_symbol_status p.status s
 
 let weight p s = p.weight s
 
@@ -189,7 +194,8 @@ let pp out prec =
   let pp_id out s = match status prec s with
     | Multiset -> Format.fprintf out "%a[M]" ID.pp s
     | Lexicographic -> Format.fprintf out "%a[L]" ID.pp s
-    | LengthLexicographic -> Format.fprintf out "%a" ID.pp s
+    | LengthLexicographic -> Format.fprintf out "%a[LL]" ID.pp s
+    | LengthLexicographicRTL -> Format.fprintf out "%a[LLRTL]" ID.pp s
   in
   pp_ pp_id out prec.snapshot
 
@@ -197,7 +203,8 @@ let pp_debugf out prec =
   let pp_id out s = match status prec s with
     | Multiset -> Format.fprintf out "%a[M]" ID.pp_full s
     | Lexicographic -> Format.fprintf out "%a[L]" ID.pp_full s
-    | LengthLexicographic -> Format.fprintf out "%a" ID.pp_full s
+    | LengthLexicographic -> Format.fprintf out "%a[LL]" ID.pp_full s
+    | LengthLexicographicRTL -> Format.fprintf out "%a[LLRTL]" ID.pp_full s
   in
   pp_ pp_id out prec.snapshot
 
@@ -242,7 +249,7 @@ let check_inv_ p =
   in
   sorted_ p.snapshot
 
-let create ?(weight=weight_constant) ?(arg_coeff=arg_coeff_default) c l =
+let create ?(weight=weight_constant) ?(arg_coeff=arg_coeff_default) ~default_symbol_status c l =
   let l = CCList.sort_uniq ~cmp:c l in
   let tbl = lazy (mk_tbl_ l) in
   let res = {
@@ -250,6 +257,7 @@ let create ?(weight=weight_constant) ?(arg_coeff=arg_coeff_default) c l =
     tbl;
     weight;
     arg_coeff;
+    default_symbol_status;
     status=ID.Tbl.create 16;
     constr=c;
   } in
@@ -291,7 +299,7 @@ let add p id = add_list p [id]
 
 let add_seq p seq = Sequence.iter (add p) seq
 
-let default l = create Constr.alpha l
+let default l = create ~default_symbol_status Constr.alpha l
 
 let default_seq seq =
   default (Sequence.to_rev_list seq)

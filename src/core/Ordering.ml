@@ -98,8 +98,8 @@ let prec_compare prec a b = match a,b with
 let prec_status prec = function
   | Head.I s -> Prec.status prec s
   | Head.B Builtin.Eq -> Prec.Multiset
-  | Head.B _ -> Prec.LengthLexicographic
-  | Head.V _ -> Prec.LengthLexicographic
+  | Head.B _ -> Prec.default_symbol_status
+  | Head.V _ -> Prec.default_symbol_status
 (* TODO: Variables should get a different status here. LengthLexicographic for variables
    will only work as long as all other symbols are LengthLexicographic as well. *)
 
@@ -311,6 +311,8 @@ module KBO : ORD = struct
           tckbolex wb ss ts
         | Prec.LengthLexicographic ->
           tckbolenlex wb ss ts
+        | Prec.LengthLexicographicRTL ->
+          tckbolenlex wb (List.rev ss) (List.rev ts)
       else (
         (* just compute variable and weight balances *)
         let wb', _ = balance_weight_rec wb ss 0 ~pos:true false in
@@ -530,6 +532,7 @@ module RPO6 : ORD = struct
           | Prec.Multiset ->  cMultiset ~prec s t ss ts
           | Prec.Lexicographic ->  cLMA ~prec s t ss ts
           | Prec.LengthLexicographic ->  cLLMA ~prec s t ss ts
+          | Prec.LengthLexicographicRTL ->  cLLMA ~prec s t (List.rev ss) (List.rev ts)
         end
       | Gt -> cMA ~prec s ts
       | Lt -> Comparison.opp (cMA ~prec t ss)
@@ -630,6 +633,7 @@ module EPO : ORD = struct
             | Prec.Multiset -> assert false
             | Prec.Lexicographic -> epo_lex ~prec ff gg
             | Prec.LengthLexicographic ->  epo_llex ~prec ff gg
+            | Prec.LengthLexicographicRTL ->  epo_llex ~prec (List.rev ff) (List.rev gg)
           in
           begin match f with
             | Head.V _ -> 
