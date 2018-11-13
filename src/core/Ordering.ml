@@ -600,44 +600,18 @@ end
 
 module EPO : ORD = struct
   let name = "epo"
-(*
-  module FlatTerm = struct
 
-    type entry =
-      { head  : Head.t;
-        depth : int;
-        next  : int;
-      }
-    
-    type t = entry array
-
-    type embterm = { pos: int; depth : int }
-
-    let chop (s:embterm) = {s with pos = s.pos + 1}
-
-    let head (t:t) (s:embterm) = (Array.get t s.pos).head
-
-    let first_arg (t:t) (s:embterm) = 
-      let pos = s.pos + 1 in
-      let entry = Array.get t pos in
-      if entry.depth > s.depth
-      then Some {pos; depth = entry.depth}
-      else None
-
-    let next_arg (t:t) (s:embterm) depth = 
-      let pos = (Array.get t s.pos).next in
-      let entry = Array.get t pos in
-      if entry.depth > depth
-      then Some {pos; depth = entry.depth}
-      else None
-
-(*TODO: cast*)
-    let rec of_term term = match Head.term_to_head term, Head.term_to_args term with
-      | Some head, args -> head :: CCList.flat_map of_term args
-      | _ -> assert false 
-  end
-  *)
-  let rec epo ~prec (s,ss) (t,tt) = 
+  let rec epo ~prec (s,ss) (t,tt) = CCCache.with_cache _cache (fun ((s,ss), (t,tt)) -> epo_behind_cache ~prec (s,ss) (t,tt)) ((s,ss),(t,tt))
+  and _cache = 
+    let hash ((a,aa),(b,bb)) = Hash.combine5 42 (T.hash a) (T.hash b) (Hash.list T.hash aa) (Hash.list T.hash bb)in
+    CCCache.replacing
+      ~eq:(fun ((a1,aa1),(b1,bb1)) ((a2,aa2),(b2,bb2)) -> 
+        T.equal a1 a2 && T.equal b1 b2 
+        && CCList.length aa1 = CCList.length aa2 && CCList.for_all2 T.equal aa1 aa2
+        && CCList.length bb1 = CCList.length bb2 && CCList.for_all2 T.equal bb1 bb2) 
+      ~hash
+      256
+  and epo_behind_cache ~prec (s,ss) (t,tt) = 
     if T.equal s t && CCList.length ss = CCList.length tt && CCList.for_all2 T.equal ss tt then Eq else
       begin match Head.term_to_head s, Head.term_to_head t with
         | Some f, Some g ->
@@ -731,14 +705,13 @@ let rpo6 prec =
   in
   { cache; compare; name=RPO6.name; prec; might_flip; monotonic=false}
 
+let dummy_cache_ = CCCache.dummy
+
 let epo prec =
-  let cache = mk_cache 256 in
-  let compare prec a b = CCCache.with_cache cache
-      (fun (a, b) -> EPO.compare_terms ~prec a b) (a,b)
+  let cache = dummy_cache_ in (* TODO: make internal EPO cache accessible here **)
+  let compare prec a b = EPO.compare_terms ~prec a b
   in
   { cache; compare; name=EPO.name; prec; might_flip=EPO.might_flip; monotonic=true }
-
-let dummy_cache_ = CCCache.dummy
 
 let none =
   let compare _ t1 t2 = if T.equal t1 t2 then Eq else Incomparable in
@@ -758,7 +731,7 @@ let subterm =
 (** {2 Global table of orders} *)
 
 let tbl_ =
-  let h = Hashtbl.create 5 in
+  let h = Hashtbl.create 6 in
   Hashtbl.add h "rpo6" rpo6;
   Hashtbl.add h "epo" epo;
   Hashtbl.add h "lfhokbo_arg_coeff" lfhokbo_arg_coeff;
