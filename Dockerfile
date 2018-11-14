@@ -18,5 +18,6 @@ RUN eval `opam config env` && \
 FROM alpine:latest as prod
 WORKDIR /root
 RUN apk update && apk add gmp-dev
+RUN apk add --no-cache bash
 COPY --from=build /zipper/build/zipperposition .
 #ENTRYPOINT ["./zipperposition"]
