@@ -19,4 +19,4 @@ FROM alpine:latest as prod
 WORKDIR /root
 RUN apk update && apk add gmp-dev
 COPY --from=build /zipper/build/zipperposition .
-ENTRYPOINT ["./zipperposition"]
+#ENTRYPOINT ["./zipperposition"]
