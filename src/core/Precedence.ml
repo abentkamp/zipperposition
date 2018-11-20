@@ -170,9 +170,7 @@ let mem p s =
   let lazy tbl = p.tbl in
   ID.Tbl.mem tbl s
 
-let default_symbol_status = LengthLexicographic
-
-let status p s = ID.Tbl.get_or ~default:default_symbol_status p.status s
+let status p s = ID.Tbl.get_or ~default:p.default_symbol_status p.status s
 
 let weight p s = p.weight s
 
@@ -298,6 +296,8 @@ let add_list p l =
 let add p id = add_list p [id]
 
 let add_seq p seq = Sequence.iter (add p) seq
+
+let default_symbol_status = LengthLexicographic
 
 let default l = create ~default_symbol_status Constr.alpha l
 
