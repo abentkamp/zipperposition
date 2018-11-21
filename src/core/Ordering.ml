@@ -622,11 +622,6 @@ module EPO : ORD = struct
         | _ -> Incomparable
       end
   and epo_composite ~prec (s,ss) (t,tt) (f,ff) (g,gg) =
-    let chop_test_f = epo_test_chop ~prec (f,ff) (t,tt) in
-    let chop_test_g = epo_test_chop ~prec (g,gg) (s,ss) in
-    if chop_test_f = Some Gt || chop_test_f = Some Eq then Gt
-    else if chop_test_g = Some Gt || chop_test_g = Some Eq then Lt
-    else
       begin match prec_compare prec f g  with
         | Eq ->
           let c = match prec_status prec f with
@@ -637,26 +632,43 @@ module EPO : ORD = struct
           in
           begin match f with
             | Head.V _ -> 
-              if c = Gt && epo_test_chop_both ~prec (f,ff) (g,gg) then Gt else
-              if c = Lt && epo_test_chop_both ~prec (g,gg) (f,ff) then Lt else
-              if c = Eq then Eq else Incomparable
+              if c = Gt && some_gt_or_none (epo_chkchop ~prec (chop (f,ff)) (g,gg)) then Gt else
+              if c = Lt && some_gt_or_none (epo_chkchop ~prec (chop (g,gg)) (f,ff)) then Lt else
+              if some_lt_or_eq (epo_chkchop ~prec (t,tt) (f,ff)) then Gt else
+              if some_lt_or_eq (epo_chkchop ~prec (s,ss) (g,gg)) then Lt else
+              Incomparable
+
             | _ -> 
-              if c = Gt && chop_test_g = Some Lt || chop_test_g = None then Gt else
-              if c = Lt && chop_test_f = Some Lt || chop_test_f = None then Lt else
-              if c = Eq then Eq else Incomparable
+              if c = Gt && some_gt_or_none (epo_chkchop ~prec (s,ss) (g,gg)) then Gt else
+              if c = Lt && some_gt_or_none (epo_chkchop ~prec (t,tt) (f,ff)) then Lt else
+              if some_lt_or_eq (epo_chkchop ~prec (t,tt) (f,ff)) then Gt else
+              if some_lt_or_eq (epo_chkchop ~prec (s,ss) (g,gg)) then Lt else
+              Incomparable
           end
-        | Gt -> if chop_test_g = Some Lt || chop_test_g = None then Gt else Incomparable
-        | Lt -> if chop_test_f = Some Lt || chop_test_f = None then Lt else Incomparable
-        | Incomparable -> Incomparable
+        | Gt -> 
+          let chk_s_g = epo_chkchop ~prec (s,ss) (g,gg) in
+          if some_gt_or_none chk_s_g then Gt else 
+          if some_lt_or_eq chk_s_g then Lt else
+          if some_lt_or_eq (epo_chkchop ~prec (t,tt) (f,ff)) then Gt else
+          Incomparable
+        | Lt -> 
+          let chk_t_f = epo_chkchop ~prec (t,tt) (f,ff) in
+          if some_gt_or_none chk_t_f then Lt else 
+          if some_lt_or_eq chk_t_f then Gt else
+          if some_lt_or_eq (epo_chkchop ~prec (s,ss) (g,gg)) then Lt else
+          Incomparable
+        | Incomparable -> 
+          if some_lt_or_eq (epo_chkchop ~prec (t,tt) (f,ff)) then Gt else
+          if some_lt_or_eq (epo_chkchop ~prec (s,ss) (g,gg)) then Lt else
+          Incomparable
       end
-  and epo_test_chop ~prec (_,ff) (t,tt) =
+  and chop (f,ff) = (List.hd ff, List.tl ff)
+  and some_gt_or_none x = (x = Some Gt || x = None)
+  and some_lt_or_eq x = (x = Some Lt || x = Some Eq)
+  and epo_chkchop ~prec (t,tt) (f,ff) =
     if List.length ff > 0
-    then Some (epo ~prec (List.hd ff, List.tl ff) (t,tt))
+    then Some (epo ~prec (t,tt) (chop (f,ff)))
     else None
-  and epo_test_chop_both ~prec (_,ff) (_,gg) =
-    if List.length ff > 0 && List.length gg > 0
-    then epo ~prec (List.hd ff, List.tl ff) (List.hd gg, List.tl gg) = Gt
-    else true
   and epo_llex ~prec ff gg =
     let m, n = (List.length ff), (List.length gg) in
     if m < n then Lt else
