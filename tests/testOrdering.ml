@@ -250,7 +250,20 @@ let test_epo = "ordering.epo", `Quick, fun () ->
   let f = Term.const ~ty:(Type.arrow [ty; ty] ty) f_ in
   let b = Term.const ~ty b_ in
   let x = Term.var (HVar.fresh ~ty ()) in
-  Alcotest.(check comp_test) "x < f x" (compare x (Term.app f [x])) Comparison.Lt
+  Alcotest.(check comp_test) "x < f x" (compare x (Term.app f [x])) Comparison.Lt;
+
+  (* f (h a) b > h b *)
+  let f = Term.const ~ty:(Type.arrow [ty; ty] ty) f_ in
+  let h = Term.const ~ty:(Type.arrow [ty] ty) h_ in
+  let a = Term.const ~ty a_ in
+  let b = Term.const ~ty b_ in
+  Alcotest.(check comp_test) "f (h a) b > h b" (compare (Term.app f [Term.app h [b]; a]) (Term.app h [b])) Comparison.Gt;
+
+  (* x f a <> x (x f) *)
+  let f = Term.const ~ty:(Type.arrow [ty] ty) f_ in
+  let x = Term.var (HVar.fresh ~ty:(Type.arrow [Type.arrow [ty] ty; ty] ty) ()) in
+  let a = Term.const ~ty a_ in
+  Alcotest.(check comp_test) "x f a <> x (x f)" (compare (Term.app x [f; a]) (Term.app x [Term.app x [f]])) Comparison.Incomparable
 
 let suite =
   [ test_rpo6;
