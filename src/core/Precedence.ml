@@ -247,7 +247,9 @@ let check_inv_ p =
   in
   sorted_ p.snapshot
 
-let create ?(weight=weight_constant) ?(arg_coeff=arg_coeff_default) ~default_symbol_status c l =
+let default_symbol_status = LengthLexicographic
+
+let create ?(weight=weight_constant) ?(arg_coeff=arg_coeff_default) ?(default_symbol_status=default_symbol_status) c l =
   let l = CCList.sort_uniq ~cmp:c l in
   let tbl = lazy (mk_tbl_ l) in
   let res = {
@@ -297,9 +299,7 @@ let add p id = add_list p [id]
 
 let add_seq p seq = Sequence.iter (add p) seq
 
-let default_symbol_status = LengthLexicographic
-
-let default l = create ~default_symbol_status Constr.alpha l
+let default l = create Constr.alpha l
 
 let default_seq seq =
   default (Sequence.to_rev_list seq)
